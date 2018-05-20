@@ -14,27 +14,24 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.SearchView;
 import android.widget.TextView;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.IOException;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
+import ru.github.pvtitov.bookshelf.search_books_contracts.Book;
+import ru.github.pvtitov.bookshelf.search_books_contracts.SearchResult;
 
 public class MainActivity extends AppCompatActivity {
 
     RecyclerView mRecyclerView;
     RecyclerView.LayoutManager mLayoutManager;
     BooksAdapter mAdapter;
-    Retrofit mRetrofit;
-    GoogleBooksApiService mService;
+    GoogleBooksService mHttpService;
+    ProgressBar mProgress;
 
 
     @Override
@@ -47,15 +44,20 @@ public class MainActivity extends AppCompatActivity {
         mRecyclerView.setLayoutManager(mLayoutManager);
         mAdapter = new BooksAdapter();
         mRecyclerView.setAdapter(mAdapter);
-
-        mRetrofit = new Retrofit.Builder()
-                .addConverterFactory(GsonConverterFactory.create())
-                .baseUrl("https://www.googleapis.com").build();
-        mService = mRetrofit.create(GoogleBooksApiService.class);
+        mProgress = findViewById(R.id.progress_main);
+        App app = (App) getApplication();
+        mHttpService = app.getHttpService();
 
         String query = handleSearch(getIntent());
+        if (query.compareTo("") > 0) {
+            loadResults(query);
+        }
 
-        mService.queryGBServerFor(query, Utils.API_KEY).enqueue(new Callback<SearchResult>() {
+    }
+
+    private void loadResults(String query) {
+        mProgress.setVisibility(View.VISIBLE);
+        mHttpService.queryGBServerFor(query, Utils.API_KEY).enqueue(new Callback<SearchResult>() {
             @Override
             public void onResponse(Call<SearchResult> call, Response<SearchResult> response) {
                 if (response.isSuccessful()) {
@@ -63,21 +65,15 @@ public class MainActivity extends AppCompatActivity {
                     mAdapter.notifyDataSetChanged();
                 }
                 else {
-                    try {
-                        JSONObject jsonObject = new JSONObject(response.errorBody().string());
-                        JSONObject errorObject = jsonObject.getJSONObject("error");
-                        Log.d("Internet", errorObject.getString("message"));
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    Log.e("Internet", "Response code: " + response.code());
                 }
+                mProgress.setVisibility(View.GONE);
             }
 
             @Override
             public void onFailure(Call<SearchResult> call, Throwable t) {
                 Log.e("Internet", t.getMessage());
+                mProgress.setVisibility(View.GONE);
             }
         });
     }
@@ -95,7 +91,10 @@ public class MainActivity extends AppCompatActivity {
 
         SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
         SearchView searchView = (SearchView) menu.findItem(R.id.search).getActionView();
-        searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
+        searchView.setSearchableInfo(
+                searchManager != null ?
+                        searchManager.getSearchableInfo(getComponentName()) :
+                        null);
 
         return true;
     }
@@ -104,39 +103,37 @@ public class MainActivity extends AppCompatActivity {
 
         public static final String EXTRA_LIST_POSITION = "position";
 
-        class BooksViewHolder extends RecyclerView.ViewHolder {
-            TextView textView;
-            BooksViewHolder(View itemView) {
-                super(itemView);
-                textView = itemView.findViewById(R.id.book_title);
-            }
-
-        }
-
         SearchResult mSearchResult;
 
         void setData(SearchResult searchResult){
             mSearchResult = searchResult;
         }
 
+
         @NonNull
         @Override
         public BooksViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new BooksViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.book_item, parent, false));
+            return new BooksViewHolder(
+                    LayoutInflater.from(parent.getContext()).inflate(R.layout.book_item, parent, false)
+            );
         }
 
         @Override
         public void onBindViewHolder(@NonNull BooksViewHolder holder, int position) {
-            if (mSearchResult.getItems() != null)
-                holder.textView.setText(
-                        mSearchResult.getItems().get(position)
-                                .getVolumeInfo().getTitle()
-            );
-            holder.itemView.setOnClickListener(v -> {
-                Intent intent = new Intent(MainActivity.this, DetailActivity.class);
-                intent.putExtra(EXTRA_LIST_POSITION, position);
-                startActivity(intent);
-            });
+            if (mSearchResult.getItems() != null) {
+                Book book = mSearchResult.getItems().get(position);
+                holder.titleView.setText(
+                        book.getVolumeInfo().getTitle());
+                holder.authorsView.setText(
+                        Utils.join(book.getVolumeInfo().getAuthors(), ", "));
+                holder.layout.setOnClickListener(v -> {
+                    Intent intent = new Intent(MainActivity.this, DetailActivity.class);
+                    String urlPart = mSearchResult.getItems().get(position).getSelfLink()
+                            .replace(getString(R.string.base_google_url), "");
+                    intent.putExtra(EXTRA_LIST_POSITION, urlPart);
+                    startActivity(intent);
+                });
+            }
         }
 
         @Override
@@ -145,6 +142,22 @@ public class MainActivity extends AppCompatActivity {
                 return mSearchResult.getItems().size();
             else return 0;
 
+        }
+
+
+
+        class BooksViewHolder extends RecyclerView.ViewHolder{
+
+            TextView titleView;
+            TextView authorsView;
+            LinearLayout layout;
+
+            BooksViewHolder(View itemView) {
+                super(itemView);
+                titleView = itemView.findViewById(R.id.book_title);
+                authorsView = itemView.findViewById(R.id.book_authors);
+                layout = itemView.findViewById(R.id.book_item);
+            }
         }
 
     }

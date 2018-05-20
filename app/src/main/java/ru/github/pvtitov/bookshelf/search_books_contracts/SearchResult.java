@@ -1,4 +1,4 @@
-package ru.github.pvtitov.bookshelf;
+package ru.github.pvtitov.bookshelf.search_books_contracts;
 
 import java.util.List;
 import com.google.gson.annotations.Expose;
@@ -39,5 +39,4 @@ public class SearchResult {
     public void setTotalItems(int totalItems) {
         this.totalItems = totalItems;
     }
-
 }

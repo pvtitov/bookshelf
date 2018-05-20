@@ -1,4 +1,4 @@
-package ru.github.pvtitov.bookshelf;
+package ru.github.pvtitov.bookshelf.search_books_contracts;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
