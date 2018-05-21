@@ -1,5 +1,7 @@
 package ru.github.pvtitov.bookshelf;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -23,6 +25,7 @@ public class DetailActivity extends AppCompatActivity {
     ProgressBar mProgressBar;
     Gson mGson = new Gson();
     BookDetails mBookDetails;
+    Handler mHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,12 +37,12 @@ public class DetailActivity extends AppCompatActivity {
 
 
         TextView headerTextView = findViewById(R.id.details_header);
+        TextView authorsTextView = findViewById(R.id.details_authors);
         TextView descriptionTextView = findViewById(R.id.details_description);
 
-        headerTextView.setText("mBookDetails.getVolumeInfo().getTitle()mBookDetails.getVolumeInfo().getTitle()mBookDetails.getVolumeInfo().getTitle()mBookDetails.getVolumeInfo().getTitle()");
-        descriptionTextView.setText("mBookDetails.getVolumeInfo().getDescription()mBookDetails.getVolumeInfo().getDescription()mBookDetails.getVolumeInfo().getDescription()mBookDetails.getVolumeInfo().getDescription()mBookDetails.getVolumeInfo().getDescription()mBookDetails.getVolumeInfo().getDescription()mBookDetails.getVolumeInfo().getDescription()mBookDetails.getVolumeInfo().getDescription()mBookDetails.getVolumeInfo().getDescription()");
-
         mUrlPart = getIntent().getStringExtra(MainActivity.BooksAdapter.EXTRA_LIST_POSITION);
+
+        mHandler = new Handler(Looper.getMainLooper());
 
         OkHttpClient client = new OkHttpClient();
         Request request = new Request.Builder().url("https://www.googleapis.com" + mUrlPart).build();
@@ -51,7 +54,16 @@ public class DetailActivity extends AppCompatActivity {
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                mBookDetails = mGson.fromJson(response.body().string(), BookDetails.class)
+                if (response.body() != null) {
+                    mBookDetails = mGson.fromJson(response.body().string(), BookDetails.class);
+                    mHandler.post(() -> {
+                        mProgressBar.setVisibility(View.GONE);
+                        headerTextView.setText(mBookDetails.getVolumeInfo().getTitle());
+                        authorsTextView.setText(
+                                Utils.join(mBookDetails.getVolumeInfo().getAuthors(), ", "));
+                        descriptionTextView.setText(mBookDetails.getVolumeInfo().getDescription());
+                    });
+                }
             }
         });
     }

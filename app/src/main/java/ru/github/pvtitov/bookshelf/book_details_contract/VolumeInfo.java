@@ -9,6 +9,9 @@ public class VolumeInfo {
     @SerializedName("title")
     @Expose
     private String title;
+    @SerializedName("authors")
+    @Expose
+    private List<String> authors = null;
     @SerializedName("publisher")
     @Expose
     private String publisher;
@@ -67,6 +70,14 @@ public class VolumeInfo {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public List<String> getAuthors() {
+        return authors;
+    }
+
+    public void setAuthors(List<String> authors) {
+        this.authors = authors;
     }
 
     public String getPublisher() {
