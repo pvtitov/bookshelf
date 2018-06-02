@@ -19,6 +19,8 @@ import android.widget.ProgressBar;
 import android.widget.SearchView;
 import android.widget.TextView;
 
+import java.io.IOException;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -66,6 +68,13 @@ public class MainActivity extends AppCompatActivity {
                 }
                 else {
                     Log.e("Internet", "Response code: " + response.code());
+                    if (response.errorBody() != null) {
+                        try {
+                            Log.e("Internet", "Error body: " + response.errorBody().string());
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
                 mProgress.setVisibility(View.GONE);
             }
